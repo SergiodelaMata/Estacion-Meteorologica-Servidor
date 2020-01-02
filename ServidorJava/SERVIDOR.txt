@@ -1,0 +1,38 @@
+weatherubicuastation.duckdns.org
+
+SERVIDOR
+
+Servidor: sftp://weatherubicuastation.duckdns.org
+Nombre de usuario: adminwss
+Contraseña: WeatherStationUbicua2019
+Puerto: 22
+
+
+BASE DE DATOS
+
+Usuario: root
+Contraseña: WeatherStationUbicua2019
+
+
+javac -encoding UTF-8 -d ./bin -cp ./src ./src/server/*.java
+java -cp bin server.Servidor
+
+
+<Button
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+
+                android:id="@+id/ajustes"
+
+                android:layout_marginTop="40dp"
+                android:background="@color/colorBoton"
+                android:onClick="startButton"
+
+                android:text="AJUSTES"
+                android:textColor="@color/colorLetra"
+                app:layout_constraintBottom_toBottomOf="parent"
+
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/radiacion" />
+
