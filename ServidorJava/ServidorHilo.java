@@ -58,7 +58,12 @@ public class ServidorHilo extends Thread{
             
             String[] tokens = parametros.split("-");
             
-            System.out.println(tokens[0]+tokens[1]);
+            if(tokens.length==2){
+                System.out.println(tokens[0]+ "-" +tokens[1]);
+            }else{
+                System.out.println(tokens[0]);
+            }
+            
         
             //Refresh-idEstacion
             //Hace una consulta para actualizar los datos mas recientes sobre una estacion
@@ -147,6 +152,18 @@ public class ServidorHilo extends Thread{
                 }catch(SQLException ex){
                     System.out.println("ErrorSQL1: "+ ex.getMessage());
                 }
+            //Stations-nada devuelve el numero de estaciones registradas en la base de datos
+            }else if(tokens[0].equals("Stations")){
+                try{
+                    conectarBD();
+                    String mensaje = "";
+                    mensaje += stationsNumber();
+                    System.out.println("Hay "+ mensaje +" estaciones conectadas");
+                    salida.writeUTF(mensaje);
+                    desconectarBD();
+                }catch(SQLException ex){
+                    System.out.println("ErrorSQL1: "+ ex.getMessage());
+                }
             }
 
         } catch (IOException ex) {
@@ -165,6 +182,21 @@ public class ServidorHilo extends Thread{
     public void desconectarBD() throws SQLException{
         
         conexionBD.close();
+    }
+    
+    public String stationsNumber() throws SQLException{
+        
+        Statement estado = conexionBD.createStatement();
+        //Tamabien podria ser la consulta "select count(ID_Estacion) from datos_recabados group by ID_Estacion"
+        ResultSet consulta = estado.executeQuery("select count(ID) from estacion");
+        
+        String resultado = "";
+        
+        while(consulta.next()){
+            resultado = consulta.getString(1);
+        }
+        
+        return resultado;
     }
     
     public String alerts(int idEstacion, String columna, String valor) throws SQLException{

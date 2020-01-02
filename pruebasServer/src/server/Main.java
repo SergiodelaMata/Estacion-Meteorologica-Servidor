@@ -11,8 +11,16 @@ package server;
  */
 public class Main {
     public static void main(String[] args) {
-        ClienteBoton c = new ClienteBoton("hola");
-        c.call();
+        ClienteNotify notify = new ClienteNotify("hola");
+        ClienteRefresh refresh = new ClienteRefresh("hola");
+        ClienteRefreshAll refreshAll = new ClienteRefreshAll("hola");
+        ClienteRefreshTable refreshTable = new ClienteRefreshTable("hola");
+        ClienteStations stations = new ClienteStations("hola");
+        refresh.call();
+        refreshAll.call();
+        refreshTable.call();
+        notify.call();
+        stations.call();
     }
     
 }
