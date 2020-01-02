@@ -17,7 +17,7 @@ public class Servidor{
 
             while (true) {
                 conexion = servidor.accept();
-                System.out.println("\t[OK]");
+                System.out.println("[OK]");
 
                 System.out.println("Nueva conexión entrante: " + conexion);
 
