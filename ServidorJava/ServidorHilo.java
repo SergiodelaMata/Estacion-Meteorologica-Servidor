@@ -61,10 +61,16 @@ public class ServidorHilo extends Thread {
 
             String[] tokens = parametros.split("-");
 
-            if (tokens.length == 2) {
-                System.out.println(tokens[0] + "-" + tokens[1]);
-            } else {
-                System.out.println(tokens[0]);
+            switch (tokens.length) {
+                case 3:
+                    System.out.println(tokens[0] + "-" + tokens[1] + "-" + tokens[2]);
+                    break;
+                case 2:
+                    System.out.println(tokens[0] + "-" + tokens[1]);
+                    break;
+                default:
+                    System.out.println(tokens[0]);
+                    break;
             }
 
             // Refresh-idEstacion
@@ -116,7 +122,7 @@ public class ServidorHilo extends Thread {
                     String mensaje = "";
                     // Nos pondrá los datos de cada estacion en una linea de diferente
                     for (int i = 1; i <= Integer.parseInt(tokens[1]); i++) {
-                        mensaje += refreshDatosAll(i);
+                        mensaje += refreshDatos(i);
                     }
                     System.out.println(mensaje);
                     salida.writeUTF(mensaje);
@@ -174,6 +180,18 @@ public class ServidorHilo extends Thread {
                 } catch (SQLException ex) {
                     System.out.println("ErrorSQL1: " + ex.getMessage());
                 }
+                //Weather-valorLuz-valorLluvia devuelve la imagen que hay que poner en el TextView Tiempo
+            }else if(tokens[0].equals("Weather")){
+                try{
+                    conectarBD();
+                    String mensaje = "";
+                    mensaje += weatherImage(tokens[1], tokens[2]);
+                    System.out.println("Imagen: "+ mensaje);
+                    salida.writeUTF(mensaje);
+                    desconectarBD();
+                }catch(SQLException ex){
+                    System.out.println("ErrorSQL1: " + ex.getMessage());
+                }
             }
 
         } catch (IOException ex) {
@@ -209,34 +227,37 @@ public class ServidorHilo extends Thread {
 
         return resultado;
     }
+    
+    public String numberColumns() throws SQLException{
+        Statement estado = conexionBD.createStatement();
+        ResultSet consulta = estado.executeQuery("select count(*) from information_schema.columns where table_name = 'datos_recabados'");
+        
+        String resultado = "";
+        
+        while(consulta.next()){
+            resultado += consulta.getString(1);
+        }
+        
+        return resultado;
+    }
 
     public String weatherImage(String luz, String lluvia) {
 
-        int lluviaDato = Integer.parseInt(lluvia);
-        int luzDato = Integer.parseInt(luz);
         String resultado = "";
-
-        // HAY QUE AJUSTAR LOS VALORES DE TODOS
-        // Dia
-        if (luzDato >= 1000) {
-            // Con lluvia
-            if (lluviaDato >= 100) {
-                resultado = "diaLluvioso.png";
-                // Sin lluvia
-            } else {
-                resultado = "soleado.png";
+        
+        if(luz.equals("soleado")){
+            if(lluvia.startsWith("lluvia")){
+                resultado += "diaLluvioso.png";
+            }else{
+                resultado += "soleado.png";
             }
-            // Nublado
-        } else if ((500 <= luzDato) && (luzDato < 1000)) {
-            resultado = "nublado.png";
-            // Noche
-        } else {
-            // Con lluvia
-            if (lluviaDato >= 100) {
-                resultado = "nocheLluviosa.png";
-                // Sin lluvia
-            } else {
-                resultado = "noche.png";
+        }else if(luz.equals("nublado")){
+            resultado += "nublado.png";
+        }else if(luz.equals("noche")){
+            if(lluvia.startsWith("lluvia")){
+                resultado += "nocheLluviosa.png";
+            }else{
+                resultado += "noche.png";
             }
         }
 
@@ -246,30 +267,74 @@ public class ServidorHilo extends Thread {
     public String alerts(int idEstacion, String columna, String valor) throws SQLException {
 
         String resultado = "";
-        float dato = Float.parseFloat(valor);
+        
+        float dato = 0;
+        int mayor = 0, menor = 0;
+        
+        //Para que no convierta el valor de la calidad del aire a un float ni que busque 
+        //su valor historico maximo o minimo
+        if(!columna.equals("calidad_aire")){
+            dato = Float.parseFloat(valor);
+
+            mayor = Integer.parseInt(historicInformationHigh(columna));
+            menor = Integer.parseInt(historicInformationLow(columna));
+        }
 
         switch (columna) {
-        case "temperatura":
-            // Avisos de temperatura que supera o es menor que x valor
-            if (dato >= 33) {
-                resultado += "Alta temperatura: " + dato + "ºC";
-            } else if (dato <= 5) {
-                resultado += "Baja temperatura: " + dato + "ºC";
-            }
+            case "temperatura":
+                // Avisos de temperatura que supera o es menor que x valor
+                if (dato >= 33) {
+                    resultado += "Alta temperatura: " + dato + "ºC";
+                } else if (dato <= 5) {
+                    resultado += "Baja temperatura: " + dato + "ºC";
+                }
 
-            int mayor = Integer.parseInt(historicInformationHigh(columna));
-            int menor = Integer.parseInt(historicInformationLow(columna));
+                // Avisos de maximo o minimos historicos en temperatura
+                if (dato >= mayor) {
+                    resultado += " y se ha registrado un máximo histórico";
+                } else if (dato <= menor) {
+                    resultado += " y se ha registrado un mínimo histórico";
+                }
 
-            // Avisos de maximo o minimos historicos en temperatura
-            if (dato >= mayor) {
-                resultado += " y se ha registrado un máximo histórico";
-            } else if (dato <= menor) {
-                resultado += " y se ha registrado un mínimo histórico";
-            }
+                break;
+            case "humedad":
+                // Avisos de humedad que supera o es menor que x valor
+                if(dato >= 65){
+                    resultado += "Alta humedad: " + dato + "%";
+                }else if(dato<=10){
+                    resultado += "Baja humedad: " + dato + "%";
+                }
 
-            break;
-        default:
-            break;
+                // Avisos de maximo o minimos historicos en humedad
+                if (dato >= mayor) {
+                    resultado += " y se ha registrado un máximo histórico";
+                } else if (dato <= menor) {
+                    resultado += " y se ha registrado un mínimo histórico";
+                }
+
+                break;
+            /*case "presion":
+                // Avisos de presion que supera o es menor que x valor
+                if(dato >= 65){
+                    resultado += "Alta presion: " + dato + "Pa";
+                }else if(dato<=10){
+                    resultado += "Baja presion: " + dato + "Pa";
+                }
+
+                // Avisos de maximo o minimos historicos en presion
+                if (dato >= mayor) {
+                    resultado += " y se ha registrado un máximo histórico";
+                } else if (dato <= menor) {
+                    resultado += " y se ha registrado un mínimo histórico";
+                }
+
+                break;*/
+            case "calidad_aire":
+                if((valor.equals("pesima"))||(valor.equals("baja"))){
+                    resultado += "!Cuidado¡ La calidad del aire es "+ valor + " hoy";
+                }
+            default:
+                break;
         }
 
         return resultado;
@@ -284,33 +349,43 @@ public class ServidorHilo extends Thread {
         // Cuando el resultado enviado a la app sea NULL querra decir que no hay ningun
         // avsido que mostrar
         String resultado = "";
+        int columnas = Integer.parseInt(numberColumns());
 
         while (consulta.next()) {
-            // ********************************************************
-            // CAMBIAR SI SE CAMBIAN EL NUMERO O LOS ATRIBUTOS DE LA BD
-            // ********************************************************
-            for (int i = 1; i <= 14; i++) {
-                // No se ponde hasta que no este la BD hecha bien, en cada uno de los switch
-                // sabiendo el numero de columna que es cada datos llamariamos a
-                // alerts(idEstacion, columna, datoConsulta)
-                // siendo columna un string que nos dice como se llama la columna (temperatura,
-                // humedad...)
-                String alerta = "";
+            for (int i = 1; i <= columnas; i++) {
+                String alerta;
                 switch (i) {
+                //temperatura
                 case 3:
                     alerta = alerts(idEstacion, "temperatura", consulta.getString(i));
                     if (!alerta.isEmpty()) {
-                        resultado += "  ◾" + alerta + "\n";
+                        resultado += "  ◾" + alerta + ".\n";
                     }
                     break;
+                //humedad
                 case 4:
+                    alerta = alerts(idEstacion, "humedad", consulta.getString(i));
+                    if (!alerta.isEmpty()) {
+                        resultado += "  ◾" + alerta + ".\n";
+                    }
                     break;
-                case 5:
+                //presion
+                /*case 5:
+                    alerta = alerts(idEstacion, "presion_atmosferica", consulta.getString(i));
+                    if (!alerta.isEmpty()) {
+                        resultado += "  ◾" + alerta + ".\n";
+                    }
+                    break;*/
+                //calidad del aire
+                case 11:
+                    alerta = alerts(idEstacion, "calidad_aire", consulta.getString(i));
+                    if (!alerta.isEmpty()) {
+                        resultado += "  ◾" + alerta + ".\n";
+                    }
                     break;
                 default:
                     break;
                 }
-
             }
         }
 
@@ -327,26 +402,30 @@ public class ServidorHilo extends Thread {
         String resultado = "";
 
         while (consulta.next()) {
-            // ********************************************************
-            // CAMBIAR SI SE CAMBIAN EL NUMERO O LOS ATRIBUTOS DE LA BD
-            // ********************************************************
             for (int i = 1; i <= 6; i++) {
                 if (consulta.getString(i) != null) {
-                    if (i == 6) {
-                        resultado += consulta.getString(i);
-                        // Esto une la longitud y latitud en un unico token
-                    } else if (i == 2) {
-                        resultado += consulta.getString(i) + "-";
-                    } else {
-                        resultado += consulta.getString(i) + "//";
+                    switch (i) {
+                        case 6: // Esto une la longitud y latitud en un unico token
+                            resultado += consulta.getString(i);
+                            break;
+                        case 2:
+                            resultado += consulta.getString(i) + "-";
+                            break;
+                        default:
+                            resultado += consulta.getString(i) + "//";
+                            break;
                     }
                 } else {
-                    if (i == 6) {
-                        resultado += "NULL";
-                    } else if (i == 2) {
-                        resultado += "NULL-";
-                    } else {
-                        resultado += "NULL//";
+                    switch (i) {
+                        case 6: // Esto une la longitud y latitud en un unico token
+                            resultado += "NULL";
+                            break;
+                        case 2:
+                            resultado += "NULL-";
+                            break;
+                        default:
+                            resultado += "NULL//";
+                            break;
                     }
                 }
             }
@@ -388,70 +467,23 @@ public class ServidorHilo extends Thread {
     public String refreshDatos(int idEstacion) throws SQLException {
 
         Statement estado = conexionBD.createStatement();
-        ResultSet consulta = estado
-                .executeQuery("select * from datos_recabados where ID_Estacion=" + idEstacion + " limit " + 1); // Cambiar
-                                                                                                                // segun
-                                                                                                                // la
-                                                                                                                // base
-                                                                                                                // de
-                                                                                                                // datos
+        ResultSet consulta = estado.executeQuery("select * from datos_recabados where ID_Estacion=" + idEstacion + " limit " + 1);
 
         String resultado = "";
+        int columnas = Integer.parseInt(numberColumns());
+        
         while (consulta.next()) {
-            // ********************************************************
-            // CAMBIAR SI SE CAMBIAN EL NUMERO O LOS ATRIBUTOS DE LA BD
-            // ********************************************************
-            for (int i = 1; i <= 14; i++) {
+            for (int i = 1; i <= columnas; i++) {
                 // Los ifs de dentro hacen que la ultima columna de la consulta no tenga el
                 // caracter separador
                 if (consulta.getString(i) != null) {
-                    if (i == 14) {
+                    if (i == columnas) {
                         resultado += consulta.getString(i);
                     } else {
                         resultado += consulta.getString(i) + "//";
                     }
                 } else {
-                    if (i == 14) {
-                        resultado += "NULL";
-                    } else {
-                        resultado += "NULL//";
-                    }
-                }
-            }
-
-            resultado += "\n";
-        }
-
-        return resultado;
-    }
-
-    public String refreshDatosAll(int idEstacion) throws SQLException {
-
-        Statement estado = conexionBD.createStatement();
-        ResultSet consulta = estado
-                .executeQuery("select * from datos_recabados where ID_Estacion=" + idEstacion + " limit " + 1); // Cambiar
-                                                                                                                // segun
-                                                                                                                // la
-                                                                                                                // base
-                                                                                                                // de
-                                                                                                                // datos
-
-        String resultado = "";
-        while (consulta.next()) {
-            // ********************************************************
-            // CAMBIAR SI SE CAMBIAN EL NUMERO O LOS ATRIBUTOS DE LA BD
-            // ********************************************************
-            for (int i = 1; i <= 14; i++) {
-                // Los ifs de dentro hacen que la ultima columna de la consulta no tenga el
-                // caracter separador
-                if (consulta.getString(i) != null) {
-                    if (i == 14) {
-                        resultado += consulta.getString(i);
-                    } else {
-                        resultado += consulta.getString(i) + "//";
-                    }
-                } else {
-                    if (i == 14) {
+                    if (i == columnas) {
                         resultado += "NULL";
                     } else {
                         resultado += "NULL//";
