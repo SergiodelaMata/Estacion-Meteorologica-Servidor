@@ -17,9 +17,7 @@ public class ServidorHilo extends Thread {
     public ServidorHilo(Socket socket) {
 
         this.conexion = socket;
-        this.dominio = "jdbc:mysql://localhost:3306/estacion_meteorologica_inteligente"; // Cambiar el dominio en
-                                                                                         // funcion del nombre de la
-                                                                                         // base de datos
+        this.dominio = "jdbc:mysql://localhost:3306/estacion_meteorologica_inteligente";
         this.usuario = "root";
         this.password = "WeatherStationUbicua2019";
 
@@ -162,6 +160,31 @@ public class ServidorHilo extends Thread {
                     } else {
                         System.out.println(mensaje);
                     }
+                    System.out.println("");
+                    salida.writeUTF(mensaje);
+                    desconectarBD();
+                } catch (SQLException ex) {
+                    System.out.println("ErrorSQL1: " + ex.getMessage());
+                }
+                //NotifyAll
+                // Devuelve un String con alertas sobre los datos de todas las estaciones. Si retorna
+                // NULL quiere decir que no hay ningun aviso si en
+                // cambio tiene otro contenido se debe mostrar la notificacion
+            }else if(tokens[0].equals("NotifyAll")){
+                try {
+                    conectarBD();
+                    String mensaje = "";
+                    for(int i=1; i<=Integer.parseInt(stationsNumber()); i++){
+                        String alerta = notifyAlert(i);
+                        if (!alerta.isEmpty()) {
+                            mensaje += "Estacion "+ i +": \n"+ alerta;
+                        }
+                    }
+                    if (mensaje.isEmpty()) {
+                        System.out.println("No hay alertas");
+                    } else {
+                        System.out.println(mensaje);
+                    }
                     salida.writeUTF(mensaje);
                     desconectarBD();
                 } catch (SQLException ex) {
@@ -178,7 +201,7 @@ public class ServidorHilo extends Thread {
                     salida.writeUTF(mensaje);
                     desconectarBD();
                 } catch (SQLException ex) {
-                    System.out.println("ErrorSQL1: " + ex.getMessage());
+                    System.out.println("ErrorSQL: " + ex.getMessage());
                 }
                 //Weather-valorLuz-valorLluvia devuelve la imagen que hay que poner en el TextView Tiempo
             }else if(tokens[0].equals("Weather")){
@@ -190,7 +213,7 @@ public class ServidorHilo extends Thread {
                     salida.writeUTF(mensaje);
                     desconectarBD();
                 }catch(SQLException ex){
-                    System.out.println("ErrorSQL1: " + ex.getMessage());
+                    System.out.println("ErrorSQL: " + ex.getMessage());
                 }
             }
 
@@ -269,74 +292,79 @@ public class ServidorHilo extends Thread {
         String resultado = "";
         
         float dato = 0;
-        int mayor = 0, menor = 0;
+        float mayor = 6666, menor = -6666;
         
         //Para que no convierta el valor de la calidad del aire a un float ni que busque 
         //su valor historico maximo o minimo
-        if(!columna.equals("calidad_aire")){
-            dato = Float.parseFloat(valor);
+        if(!valor.isEmpty()){
+            if(!columna.equals("calidad_aire") && !columna.equals("nivel_radiacion")){
+                
+                dato = (float) Float.parseFloat(valor);
+                
+                String mayorS = historicInformationHigh(columna);
+                String menorS = historicInformationLow(columna);
+                
+                if(!mayorS.isEmpty()){
+                    mayor = (float) Float.parseFloat(mayorS);
+                }
+                if(!menorS.isEmpty()){
+                    menor = (float) Float.parseFloat(menorS);
+                }
+            }
 
-            mayor = Integer.parseInt(historicInformationHigh(columna));
-            menor = Integer.parseInt(historicInformationLow(columna));
+            switch (columna) {
+                case "nivel_radiacion":
+                    // Avisos de temperatura que supera o es menor que x valor
+                    float uva = (float) Float.parseFloat(valor);
+
+                    if (uva >= 6) {
+                        resultado += "Se recomienda protección solar: "+ uva +"UV.\n";
+                    } else if (uva <= 2) {
+                        resultado += "Baja radiación solar: " + uva +"UV.\n";
+                    }
+
+                    break;
+                case "temperatura":
+                    // Avisos de temperatura que supera o es menor que x valor
+                    if (dato >= 33) {
+                        resultado += "Alta temperatura: " + dato + "ºC.\n";
+                    } else if (dato <= 5) {
+                        resultado += "Baja temperatura: " + dato + "ºC.\n";
+                    }
+
+                    // Avisos de maximo o minimos historicos en temperatura
+                    if (dato >= mayor) {
+                        resultado += "Se ha registrado el máximo valor de temperatura.\n";
+                    } else if (dato <= menor) {
+                        resultado += "Se ha registrado el mínimo de valor temperatura.\n";
+                    }
+
+                    break;
+                case "humedad":
+                    // Avisos de humedad que supera o es menor que x valor
+                    if(dato >= 65){
+                        resultado += "Alta humedad: " + dato + "%.\n";
+                    }else if(dato<=10){
+                        resultado += "Baja humedad: " + dato + "%.\n";
+                    }
+
+                    // Avisos de maximo o minimos historicos en humedad
+                    if (dato >= mayor) {
+                        resultado += "Se ha registrado el máximo valor de humedad.\n";
+                    } else if (dato <= menor) {
+                        resultado += "Se ha registrado el mínimo valor de humedad.\n";
+                    }
+
+                    break;
+                case "calidad_aire":
+                    if((valor.equals("pesima"))||(valor.equals("baja"))){
+                        resultado += "!Cuidado¡ La calidad del aire es "+ valor + " hoy.\n";
+                    }
+                default:
+                    break;
+            }
         }
-
-        switch (columna) {
-            case "temperatura":
-                // Avisos de temperatura que supera o es menor que x valor
-                if (dato >= 33) {
-                    resultado += "Alta temperatura: " + dato + "ºC";
-                } else if (dato <= 5) {
-                    resultado += "Baja temperatura: " + dato + "ºC";
-                }
-
-                // Avisos de maximo o minimos historicos en temperatura
-                if (dato >= mayor) {
-                    resultado += " y se ha registrado un máximo histórico";
-                } else if (dato <= menor) {
-                    resultado += " y se ha registrado un mínimo histórico";
-                }
-
-                break;
-            case "humedad":
-                // Avisos de humedad que supera o es menor que x valor
-                if(dato >= 65){
-                    resultado += "Alta humedad: " + dato + "%";
-                }else if(dato<=10){
-                    resultado += "Baja humedad: " + dato + "%";
-                }
-
-                // Avisos de maximo o minimos historicos en humedad
-                if (dato >= mayor) {
-                    resultado += " y se ha registrado un máximo histórico";
-                } else if (dato <= menor) {
-                    resultado += " y se ha registrado un mínimo histórico";
-                }
-
-                break;
-            /*case "presion":
-                // Avisos de presion que supera o es menor que x valor
-                if(dato >= 65){
-                    resultado += "Alta presion: " + dato + "Pa";
-                }else if(dato<=10){
-                    resultado += "Baja presion: " + dato + "Pa";
-                }
-
-                // Avisos de maximo o minimos historicos en presion
-                if (dato >= mayor) {
-                    resultado += " y se ha registrado un máximo histórico";
-                } else if (dato <= menor) {
-                    resultado += " y se ha registrado un mínimo histórico";
-                }
-
-                break;*/
-            case "calidad_aire":
-                if((valor.equals("pesima"))||(valor.equals("baja"))){
-                    resultado += "!Cuidado¡ La calidad del aire es "+ valor + " hoy";
-                }
-            default:
-                break;
-        }
-
+        
         return resultado;
     }
 
@@ -344,7 +372,7 @@ public class ServidorHilo extends Thread {
 
         Statement estado = conexionBD.createStatement();
         ResultSet consulta = estado
-                .executeQuery("select * from datos_recabados where ID_Estacion=" + idEstacion + " limit " + 1);
+                .executeQuery("select * from datos_recabados where ID_Estacion=" + idEstacion + " order by fecha_hora desc limit " + 1);
 
         // Cuando el resultado enviado a la app sea NULL querra decir que no hay ningun
         // avsido que mostrar
@@ -355,36 +383,47 @@ public class ServidorHilo extends Thread {
             for (int i = 1; i <= columnas; i++) {
                 String alerta;
                 switch (i) {
-                //temperatura
-                case 3:
-                    alerta = alerts(idEstacion, "temperatura", consulta.getString(i));
-                    if (!alerta.isEmpty()) {
-                        resultado += "  ◾" + alerta + ".\n";
-                    }
-                    break;
-                //humedad
-                case 4:
-                    alerta = alerts(idEstacion, "humedad", consulta.getString(i));
-                    if (!alerta.isEmpty()) {
-                        resultado += "  ◾" + alerta + ".\n";
-                    }
-                    break;
-                //presion
-                /*case 5:
-                    alerta = alerts(idEstacion, "presion_atmosferica", consulta.getString(i));
-                    if (!alerta.isEmpty()) {
-                        resultado += "  ◾" + alerta + ".\n";
-                    }
-                    break;*/
-                //calidad del aire
-                case 11:
-                    alerta = alerts(idEstacion, "calidad_aire", consulta.getString(i));
-                    if (!alerta.isEmpty()) {
-                        resultado += "  ◾" + alerta + ".\n";
-                    }
-                    break;
-                default:
-                    break;
+                    //temperatura
+                    case 3:
+                        if(consulta.getString(i)!=null){
+                            alerta = alerts(idEstacion, "temperatura", consulta.getString(i));
+                            if (!alerta.isEmpty()) {
+                                resultado += "  -" + alerta;
+                            }
+                        }
+
+                        break;
+                    //humedad
+                    case 4:
+                        if(consulta.getString(i)!=null){
+                            alerta = alerts(idEstacion, "humedad", consulta.getString(i));
+                            if (!alerta.isEmpty()) {
+                                resultado += "  -" + alerta;
+                            }
+                        }
+
+                        break;
+                    //radiacion
+                    case 8:
+                        if(consulta.getString(i)!=null){
+                            alerta = alerts(idEstacion, "nivel_radiacion", consulta.getString(i));
+                            if (!alerta.isEmpty()) {
+                                resultado += "  -" + alerta;
+                            }
+                        }
+
+                        break;
+                    //calidad del aire
+                    case 11:
+                        if(consulta.getString(i)!=null){
+                            alerta = alerts(idEstacion, "calidad_aire", consulta.getString(i));
+                            if (!alerta.isEmpty()) {
+                                resultado += "  -" + alerta;
+                            }
+                        }
+                        break;
+                    default:
+                        break;
                 }
             }
         }
@@ -397,7 +436,7 @@ public class ServidorHilo extends Thread {
         Statement estado = conexionBD.createStatement();
         ResultSet consulta = estado.executeQuery("select ID_Estacion, Latitud, Longitud, Temperatura, Humedad, "
                 + "Presion_Atmosferica from datos_recabados t1 inner join estacion t2 on t1.ID_Estacion = t2.ID "
-                + "where t1.ID_Estacion = " + idEstacion + " limit 1");
+                + "where t1.ID_Estacion = " + idEstacion + " order by fecha_hora desc limit 1");
 
         String resultado = "";
 
@@ -467,7 +506,7 @@ public class ServidorHilo extends Thread {
     public String refreshDatos(int idEstacion) throws SQLException {
 
         Statement estado = conexionBD.createStatement();
-        ResultSet consulta = estado.executeQuery("select * from datos_recabados where ID_Estacion=" + idEstacion + " limit " + 1);
+        ResultSet consulta = estado.executeQuery("select * from datos_recabados where ID_Estacion=" + idEstacion + " order by fecha_hora desc limit " + 1);
 
         String resultado = "";
         int columnas = Integer.parseInt(numberColumns());
