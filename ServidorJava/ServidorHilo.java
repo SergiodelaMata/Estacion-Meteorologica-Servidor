@@ -1,6 +1,10 @@
 import java.io.*;
 import java.net.*;
 import java.sql.*;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
 
 public class ServidorHilo extends Thread {
 
@@ -11,8 +15,13 @@ public class ServidorHilo extends Thread {
 
     private Connection conexionBD;
     
-
+    private Date fechaActual;
+    
+    private DateFormat formatoHora, formatoFecha;
+    
     private String dominio, usuario, password;
+    
+    private int aa, mm, dd, hh, mn, ss;
 
     public ServidorHilo(Socket socket) {
 
@@ -20,7 +29,19 @@ public class ServidorHilo extends Thread {
         this.dominio = "jdbc:mysql://localhost:3306/estacion_meteorologica_inteligente";
         this.usuario = "root";
         this.password = "WeatherStationUbicua2019";
-
+        this.fechaActual = new Date();
+        
+        this.formatoFecha = new SimpleDateFormat("dd/MM/yyyy");
+        this.formatoHora = new SimpleDateFormat("HH:mm:ss");
+        
+        Calendar fecha = Calendar.getInstance();
+        this.aa = fecha.get(Calendar.YEAR);
+        this.mm = fecha.get(Calendar.MONTH) + 1;
+        this.dd = fecha.get(Calendar.DAY_OF_MONTH);
+        this.hh = fecha.get(Calendar.HOUR_OF_DAY);
+        this.mn = fecha.get(Calendar.MINUTE);
+        this.ss = fecha.get(Calendar.SECOND);
+        
         try {
 
             salida = new DataOutputStream(conexion.getOutputStream());
@@ -35,6 +56,7 @@ public class ServidorHilo extends Thread {
 
             System.out.println("ErrorCNF: " + ex.getMessage());
         }
+        
     }
 
     public void desconectar() {
@@ -110,24 +132,7 @@ public class ServidorHilo extends Thread {
                 } catch (SQLException ex) {
                     System.out.println("ErrorSQL: " + ex.getMessage());
                 }
-                // RefreshAll-numeroEstaciones teniendo en cuenta que los id de estaciones van
-                // de 1 a n
-                // Hace una consulta para actualizar los datos mas recientes sobre todas las
-                // estaciones
-            } else if (tokens[0].equals("RefreshAll")) {
-                try {
-                    conectarBD();
-                    String mensaje = "";
-                    // Nos pondrá los datos de cada estacion en una linea de diferente
-                    for (int i = 1; i <= Integer.parseInt(tokens[1]); i++) {
-                        mensaje += refreshDatos(i);
-                    }
-                    System.out.println(mensaje);
-                    salida.writeUTF(mensaje);
-                    desconectarBD();
-                } catch (SQLException ex) {
-                    System.out.println("ErrorSQL: " + ex.getMessage());
-                }
+             
                 // RefreshTable-numeroEstaciones teniendo en cuenta que los id de las estaciones
                 // van de 1 a n
                 // Hace una consulta para refrecar los datos de la tabla (id, ubicacion,
@@ -215,6 +220,68 @@ public class ServidorHilo extends Thread {
                 }catch(SQLException ex){
                     System.out.println("ErrorSQL: " + ex.getMessage());
                 }
+                //Graph-idEstacion-columna especificando la columna y el id de la estaciojn nos devielve los datos de las 20 horas
+                //anteriores
+            } else if(tokens[0].equals("Graph")){
+                try{
+                    conectarBD();
+                    
+                    String mensaje = "";
+                    
+                    String anno = ""+this.aa;
+                    String mes = ""+this.mm;
+                    String dia = ""+this.dd;
+                    String hora = ""+this.hh;
+                    String minuto = ""+this.mn;
+                    String segundo = ""+this.ss;
+                    
+                    if(this.mm<10){
+                        mes = "0"+this.mm;
+                    }
+                    if(this.dd<10){
+                        dia = "0"+this.dd;
+                    }
+                    if(this.mn<10){
+                        minuto = "0"+this.mn;
+                    }
+                    
+                    int horaInt = Integer.parseInt(hora);
+                    
+                    for(int i=0; i<20; i++){
+                        //Hora en funcion de si pasa de las 00 o no
+                        int horaConsulta;
+                        int diaConsulta = Integer.parseInt(dia);
+                        
+                        if(i>horaInt){
+                            horaConsulta = 24-(i-horaInt);
+                            diaConsulta --;
+                        }else{
+                            horaConsulta = horaInt-i;
+                        }
+                        
+                        String horaCon = ""+horaConsulta;
+                        String diaCon = ""+diaConsulta;
+                        
+                        //Ponemos bien el formato de la hora, dia y mes para que tenga un 0 delante
+                        if(horaConsulta<10){
+                            horaCon = "0"+horaConsulta;
+                        }
+                        if(diaConsulta<10){
+                            diaCon = "0"+diaConsulta;
+                        }
+                        
+                        //String fechaConsulta = anno +"-"+ mes +"-"+ dia +" "+ horaCon +":%:%";
+                        String fechaConsulta = "%-"+ diaConsulta +"-% "+ horaCon +":%:%";
+                        
+                        mensaje = diaCon+"-"+ horaCon +"h//"+ graphStation(tokens[1], tokens[2], fechaConsulta) +"\n"+ mensaje;
+                    }
+                    
+                    System.out.println(mensaje);
+                    
+                    desconectarBD();
+                }catch(SQLException ex){
+                    System.out.println("ErrorSQL: " + ex.getMessage());
+                }
             }
 
         } catch (IOException ex) {
@@ -233,6 +300,22 @@ public class ServidorHilo extends Thread {
     public void desconectarBD() throws SQLException {
 
         conexionBD.close();
+    }
+    
+    public String graphStation(String id, String columna, String hora) throws SQLException{
+        
+        Statement estado = conexionBD.createStatement();
+        ResultSet consulta = estado.executeQuery("select "+ columna +" from datos_recabados where ID_Estacion = "+ id 
+                +" and Fecha_Hora LIKE \""+ hora +"\" order by Fecha_Hora desc limit 1");
+        
+        //select Temperatura from datos_recabados where ID_Estacion = 4 and Fecha_Hora LIKE "%-%-% 16:%:%" ORDER by Fecha_Hora DESC LIMIT 1
+        String resultado = "NULL";
+        
+        while(consulta.next()){
+            resultado = consulta.getString(1);
+        }
+        
+        return resultado;
     }
 
     public String stationsNumber() throws SQLException {
