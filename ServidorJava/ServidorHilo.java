@@ -277,7 +277,7 @@ public class ServidorHilo extends Thread {
                     }
                     
                     System.out.println(mensaje);
-                    
+                    salida.writeUTF(mensaje);
                     desconectarBD();
                 }catch(SQLException ex){
                     System.out.println("ErrorSQL: " + ex.getMessage());
