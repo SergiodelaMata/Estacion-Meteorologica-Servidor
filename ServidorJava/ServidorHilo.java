@@ -1,7 +1,10 @@
 import java.io.*;
 import java.net.*;
 import java.sql.*;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Date;
 
 public class ServidorHilo extends Thread {
 
@@ -11,6 +14,10 @@ public class ServidorHilo extends Thread {
     private DataInputStream entrada;
 
     private Connection conexionBD;
+    
+    private Date fechaActual;
+    
+    private DateFormat formatoHora, formatoFecha;
     
     private String dominio, usuario, password;
     
@@ -22,6 +29,10 @@ public class ServidorHilo extends Thread {
         this.dominio = "jdbc:mysql://localhost:3306/estacion_meteorologica_inteligente";
         this.usuario = "root";
         this.password = "WeatherStationUbicua2019";
+        this.fechaActual = new Date();
+        
+        this.formatoFecha = new SimpleDateFormat("dd/MM/yyyy");
+        this.formatoHora = new SimpleDateFormat("HH:mm:ss");
         
         Calendar fecha = Calendar.getInstance();
         this.aa = fecha.get(Calendar.YEAR);
