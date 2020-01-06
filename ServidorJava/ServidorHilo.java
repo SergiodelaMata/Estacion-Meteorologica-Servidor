@@ -271,9 +271,15 @@ public class ServidorHilo extends Thread {
                         }
                         
                         //String fechaConsulta = anno +"-"+ mes +"-"+ dia +" "+ horaCon +":%:%";
-                        String fechaConsulta = "%-"+ diaConsulta +"-% "+ horaCon +":%:%";
+                        String fechaConsulta = "%-%-"+ diaCon +" "+ horaCon +":%:%";
                         
-                        mensaje = diaCon+"-"+ horaCon +"h//"+ graphStation(tokens[1], tokens[2], fechaConsulta) +"\n"+ mensaje;
+                        //Si el de tiempo llamamos a weather
+                        if(tokens[2].toLowerCase().equals("tiempo")){
+                            mensaje = diaCon+"-"+ horaCon +"h//"+ graphWeather(tokens[1], fechaConsulta) +"\n"+ mensaje;
+                        }else{
+                            mensaje = diaCon+"-"+ horaCon +"h//"+ graphStation(tokens[1], tokens[2], fechaConsulta) +"\n"+ mensaje;
+                        }
+                        
                     }
                     
                     System.out.println(mensaje);
@@ -282,7 +288,7 @@ public class ServidorHilo extends Thread {
                 }catch(SQLException ex){
                     System.out.println("ErrorSQL: " + ex.getMessage());
                 }
-            }
+            } 
 
         } catch (IOException ex) {
 
@@ -300,6 +306,40 @@ public class ServidorHilo extends Thread {
     public void desconectarBD() throws SQLException {
 
         conexionBD.close();
+    }
+    
+    public String graphWeather(String id, String hora) throws SQLException{
+        
+        Statement estado = conexionBD.createStatement();
+        ResultSet consulta = estado.executeQuery("select Nivel_Luz, Cantidad_Lluvia from datos_recabados where ID_Estacion = "+ id 
+                +" and Fecha_Hora LIKE \""+ hora +"\" order by Fecha_Hora desc limit 1");
+        
+        String consultaRes = "NULL-NULL";
+        String resultado = "";
+        
+        while(consulta.next()){
+            consultaRes = "";
+            for(int i=1; i<=2; i++){
+                if(i==2){
+                    consultaRes += "-";
+                }
+                if(consulta.getString(i)==null){
+                    consultaRes += "NULL";
+                }else{
+                    consultaRes += consulta.getString(i);
+                }
+            }
+        }
+        
+        String[] tokens = consultaRes.split("-");
+        
+        resultado += weatherImage(tokens[0], tokens[1]);
+        
+        if(resultado.isEmpty()){
+            resultado += "null.png";
+        }
+        
+        return resultado;
     }
     
     public String graphStation(String id, String columna, String hora) throws SQLException{
