@@ -452,9 +452,9 @@ public class ServidorHilo extends Thread {
                     break;
                 case "temperatura":
                     // Avisos de temperatura que supera o es menor que x valor
-                    if (dato >= 33) {
+                    if (dato >= 34) {
                         resultado += "Alta temperatura: " + dato + "ºC. ";
-                    } else if (dato <= 5) {
+                    } else if (dato <= 7) {
                         resultado += "Baja temperatura: " + dato + "ºC. ";
                     }
 
@@ -472,9 +472,9 @@ public class ServidorHilo extends Thread {
                     break;
                 case "humedad":
                     // Avisos de humedad que supera o es menor que x valor
-                    if(dato >= 65){
+                    if(dato >= 75){
                         resultado += "Alta humedad: " + dato + "%. ";
-                    }else if(dato<=10){
+                    }else if(dato<=30){
                         resultado += "Baja humedad: " + dato + "%. ";
                     }
 
