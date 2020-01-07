@@ -178,18 +178,21 @@ public class ServidorHilo extends Thread {
             }else if(tokens[0].equals("NotifyAll")){
                 try {
                     conectarBD();
+                    
                     String mensaje = "";
                     for(int i=1; i<=Integer.parseInt(stationsNumber()); i++){
                         String alerta = notifyAlert(i);
                         if (!alerta.isEmpty()) {
-                            mensaje += "Estacion "+ i +": \n"+ alerta;
+                            mensaje += "ESTACION "+ i +": \n"+ alerta + "\n";
                         }
                     }
+                    
                     if (mensaje.isEmpty()) {
                         System.out.println("No hay alertas");
                     } else {
                         System.out.println(mensaje);
                     }
+                    
                     salida.writeUTF(mensaje);
                     desconectarBD();
                 } catch (SQLException ex) {
@@ -391,16 +394,16 @@ public class ServidorHilo extends Thread {
 
         String resultado = "";
         
-        if(luz.equals("soleado")){
-            if(lluvia.startsWith("lluvia")){
+        if(luz.toLowerCase().equals("soleado")){
+            if(lluvia.toLowerCase().startsWith("lluvia")){
                 resultado += "diaLluvioso.png";
             }else{
                 resultado += "soleado.png";
             }
-        }else if(luz.equals("nublado")){
+        }else if(luz.toLowerCase().equals("nublado")){
             resultado += "nublado.png";
-        }else if(luz.equals("noche")){
-            if(lluvia.startsWith("lluvia")){
+        }else if(luz.toLowerCase().equals("noche")){
+            if(lluvia.toLowerCase().startsWith("lluvia")){
                 resultado += "nocheLluviosa.png";
             }else{
                 resultado += "noche.png";
@@ -450,9 +453,9 @@ public class ServidorHilo extends Thread {
                 case "temperatura":
                     // Avisos de temperatura que supera o es menor que x valor
                     if (dato >= 33) {
-                        resultado += "Alta temperatura: " + dato + "ºC.\n";
+                        resultado += "Alta temperatura: " + dato + "ºC. ";
                     } else if (dato <= 5) {
-                        resultado += "Baja temperatura: " + dato + "ºC.\n";
+                        resultado += "Baja temperatura: " + dato + "ºC. ";
                     }
 
                     // Avisos de maximo o minimos historicos en temperatura
@@ -460,15 +463,19 @@ public class ServidorHilo extends Thread {
                         resultado += "Se ha registrado el máximo valor de temperatura.\n";
                     } else if (dato <= menor) {
                         resultado += "Se ha registrado el mínimo de valor temperatura.\n";
+                    }else{
+                        if(!resultado.isEmpty()){
+                            resultado += "\n";
+                        }
                     }
 
                     break;
                 case "humedad":
                     // Avisos de humedad que supera o es menor que x valor
                     if(dato >= 65){
-                        resultado += "Alta humedad: " + dato + "%.\n";
+                        resultado += "Alta humedad: " + dato + "%. ";
                     }else if(dato<=10){
-                        resultado += "Baja humedad: " + dato + "%.\n";
+                        resultado += "Baja humedad: " + dato + "%. ";
                     }
 
                     // Avisos de maximo o minimos historicos en humedad
@@ -476,6 +483,10 @@ public class ServidorHilo extends Thread {
                         resultado += "Se ha registrado el máximo valor de humedad.\n";
                     } else if (dato <= menor) {
                         resultado += "Se ha registrado el mínimo valor de humedad.\n";
+                    }else{
+                        if(!resultado.isEmpty()){
+                            resultado += "\n";
+                        }
                     }
 
                     break;
